@@ -1,0 +1,52 @@
+<svg width="1280" height="640" viewBox="0 0 1280 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="80" y1="40" x2="1180" y2="600" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#08121D"/>
+      <stop offset="0.45" stop-color="#0E2234"/>
+      <stop offset="1" stop-color="#143149"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#FF8A00"/>
+      <stop offset="1" stop-color="#FFD24A"/>
+    </linearGradient>
+    <filter id="softGlow" x="0" y="0" width="1280" height="640" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="38"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="640" rx="24" fill="url(#bg)"/>
+
+  <g opacity="0.2" filter="url(#softGlow)">
+    <circle cx="260" cy="130" r="140" fill="#FFB347"/>
+    <circle cx="1020" cy="540" r="170" fill="#5EC9FF"/>
+  </g>
+
+  <rect x="92" y="92" width="760" height="456" rx="16" fill="#0E1C2B" stroke="#2E455B"/>
+  <rect x="120" y="132" width="580" height="24" rx="6" fill="#1A3247"/>
+  <rect x="120" y="176" width="654" height="18" rx="5" fill="#173044"/>
+  <rect x="120" y="210" width="615" height="18" rx="5" fill="#173044"/>
+  <rect x="120" y="244" width="680" height="18" rx="5" fill="#173044"/>
+  <rect x="120" y="278" width="564" height="18" rx="5" fill="#173044"/>
+
+  <rect x="120" y="330" width="118" height="38" rx="8" fill="#3A2E00"/>
+  <text x="132" y="355" fill="#F8C66A" font-family="Menlo, Consolas, monospace" font-size="22" font-weight="700">01:23:45:12</text>
+
+  <rect x="120" y="388" width="118" height="38" rx="8" fill="#3A2E00"/>
+  <text x="132" y="413" fill="#F8C66A" font-family="Menlo, Consolas, monospace" font-size="22" font-weight="700">01:24:07:03</text>
+
+  <rect x="904" y="140" width="280" height="360" rx="20" fill="#0D1A28" stroke="#2B4356"/>
+  <text x="942" y="196" fill="#FFFFFF" font-family="Avenir Next, Segoe UI, sans-serif" font-size="34" font-weight="700">ScriptViewer</text>
+  <text x="942" y="236" fill="#95B5CF" font-family="Avenir Next, Segoe UI, sans-serif" font-size="19">DaVinci Resolve Utility</text>
+
+  <rect x="942" y="272" width="198" height="44" rx="12" fill="url(#accent)"/>
+  <text x="966" y="300" fill="#172230" font-family="Avenir Next, Segoe UI, sans-serif" font-size="18" font-weight="700">Click Timecode</text>
+
+  <line x1="1018" y1="332" x2="1018" y2="438" stroke="#45647C" stroke-width="3"/>
+  <polygon points="1018,332 1004,352 1032,352" fill="#6D8CA3"/>
+  <polygon points="1018,438 1004,418 1032,418" fill="#6D8CA3"/>
+
+  <text x="942" y="478" fill="#B8D2E8" font-family="Avenir Next, Segoe UI, sans-serif" font-size="17">Jump the playhead instantly</text>
+  <text x="942" y="504" fill="#B8D2E8" font-family="Avenir Next, Segoe UI, sans-serif" font-size="17">from script to timeline</text>
+
+  <rect x="92" y="572" width="1096" height="2" fill="#24415A" opacity="0.65"/>
+</svg>

@@ -3,6 +3,7 @@
 [![Lua](https://img.shields.io/badge/Lua-5.1-2C2D72?logo=lua&logoColor=white)](https://www.lua.org/)
 [![Platform](https://img.shields.io/badge/Platform-macOS-111111?logo=apple&logoColor=white)](#installation-macos)
 [![Status](https://img.shields.io/badge/Status-Active%20Development-0A7D32)](#roadmap)
+[![License: MIT](https://img.shields.io/badge/License-MIT-0E8A16.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-1F6FEB)](#contributing)
 
 [Русская версия](README.ru.md)
@@ -86,4 +87,4 @@ Ideas, bug reports, and pull requests are welcome.
 
 ## License
 
-No license file is included yet. Add one before public release if you want explicit reuse terms.
+Released under the MIT License. See [LICENSE](LICENSE).
