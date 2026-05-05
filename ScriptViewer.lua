@@ -35,8 +35,13 @@ local function jumpToTimecode(tc)
     print("[ScriptViewer] jumpToTimecode: no timeline")
     return false
   end
-  print("[ScriptViewer] SetCurrentTimecode("..tc..")")
-  local ok = tl:SetCurrentTimecode(tc)
+  local normalized = tc:gsub(";", ":")
+  print("[ScriptViewer] SetCurrentTimecode("..normalized..")")
+  local ok = tl:SetCurrentTimecode(normalized)
+  if not ok and normalized ~= tc then
+    -- Fallback for versions that accept drop-frame separator as-is.
+    ok = tl:SetCurrentTimecode(tc)
+  end
   print("[ScriptViewer] result: "..tostring(ok))
   return ok
 end
@@ -309,8 +314,12 @@ win.On.SpinSize.ValueChanged = function(ev)
 end
 
 win.On.TxtMain.AnchorClicked = function(ev)
-  local url = ev.URL or ""
-  local tc  = url:match("^tc://(.+)$")
+  local url = tostring(ev.URL or "")
+  local tc  = url:match(TC_PATTERN)
+  if not tc then
+    local raw = url:match("^tc://(.+)$")
+    if raw then tc = raw:match(TC_PATTERN) or raw end
+  end
   if not tc then
     print("[ScriptViewer] AnchorClicked: no tc in URL: "..url)
     return
@@ -338,6 +347,7 @@ win.On.BtnSaveAs.Clicked = function()
   if state.lastPath then
     defaultDir  = state.lastPath:match("^(.+)/[^/]+$") or ""
     defaultName = state.lastPath:match("([^/]+)$") or defaultName
+    defaultName = (defaultName:gsub("%.[^%.]+$", ""))..".txt"
   end
   if defaultDir=="" then defaultDir = os.getenv("HOME").."/Desktop" end
 
@@ -375,7 +385,7 @@ win.On.BtnSaveAs.Clicked = function()
     local dir  = sw.TxtDir.Text:gsub("/+$","")
     local name = sw.TxtName.Text
     if name=="" then name="script.txt" end
-    if not name:find("%.%w+$") then name=name..".txt" end
+    name = name:gsub("%.[^%.]+$", "")..".txt"
     chosenPath = dir.."/"..name
     disp:ExitLoop()
   end

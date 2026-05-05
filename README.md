@@ -1,127 +1,89 @@
-# ScriptViewer — DaVinci Resolve Plugin
+# ScriptViewer for DaVinci Resolve
 
-Открывает текстовые файлы (сценарии, скрипты) прямо внутри DaVinci Resolve.  
-Таймкоды в формате SMPTE `HH:MM:SS:FF` подсвечиваются и при клике перемещают плейхед на таймлайне.
+[![Lua](https://img.shields.io/badge/Lua-5.1-2C2D72?logo=lua&logoColor=white)](https://www.lua.org/)
+[![Platform](https://img.shields.io/badge/Platform-macOS-111111?logo=apple&logoColor=white)](#installation-macos)
+[![Status](https://img.shields.io/badge/Status-Active%20Development-0A7D32)](#roadmap)
+[![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-1F6FEB)](#contributing)
 
----
+[Русская версия](README.ru.md)
 
-## Установка (macOS)
+![ScriptViewer banner](assets/banner.svg)
 
-1. Скопируй `ScriptViewer.lua` в папку:
+Read scripts inside Resolve and jump to exact moments with one click.
 
-```
+ScriptViewer is a lightweight Lua utility for DaVinci Resolve/Fusion that opens text documents in a dedicated panel, highlights SMPTE timecodes, and moves the playhead when you click them.
+
+## Highlights
+
+- No app switching: keep your script and timeline in the same workspace.
+- Clickable SMPTE timecodes for fast timeline navigation.
+- View/Edit workflow for quick in-app text fixes.
+- Save As always exports plain text `.txt`.
+- Supports common screenplay and production note formats.
+
+## Features
+
+- File support: `.txt`, `.fountain`, `.md`, `.srt`, `.fdx`, `.docx`, `.doc`, `.rtf`, `.odt`, `.pages`.
+- SMPTE detection:
+  - `HH:MM:SS:FF`
+  - `HH:MM:SS;FF`
+- Click-to-jump playhead navigation.
+- View/Edit mode toggle.
+- Font size control (8-36).
+- Save As export to `.txt`.
+
+## Installation (macOS)
+
+1. Copy `ScriptViewer.lua` to:
+
+```text
 ~/Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts/Utility/
 ```
 
-Быстро открыть через Terminal:
+2. Start DaVinci Resolve and run:
+
+```text
+Workspace -> Scripts -> Utility -> ScriptViewer
+```
+
+3. Resolve restart is usually not required.
+
+Quick open target folder from Terminal:
+
 ```bash
 open "$HOME/Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts/Utility/"
 ```
 
-2. Перезапускать Resolve **не нужно** — скрипты подхватываются налету.
+## Usage
 
-3. Запуск:  
-   `Workspace → Scripts → Utility → ScriptViewer`
+1. Click Open... and select your script file.
+2. Click any SMPTE timecode to move the playhead.
+3. Use Edit to modify text and View to return to clickable mode.
+4. Use Save As... to export the current content as `.txt`.
 
----
+## Built For
 
-## Использование
+- Editors working with scripted timelines.
+- Directors and assistants reviewing cue/timecode notes.
+- Script supervisor workflows that need everything inside Resolve.
 
-| Действие | Результат |
-|---|---|
-| **Open File…** | Выбрать .txt / .fountain / .fdx / .md / .srt |
-| Клик на таймкод | Плейхед прыгает на этот момент |
-| Спиннер размера шрифта | Меняет размер текста (8–36px) |
-| **Clear** | Очистить панель |
+## Technical Notes
 
----
+- Language: Lua 5.1 (Fusion scripting).
+- UI: Fusion UIManager.
+- Integration: Resolve API (`Resolve()`, timeline navigation).
 
-## Поддерживаемые форматы таймкодов
+## Roadmap
 
-- `HH:MM:SS:FF` — стандартный SMPTE
-- `HH:MM:SS;FF` — drop-frame SMPTE
+- [ ] In-document text search
+- [ ] Drag and drop file support
+- [ ] Timecode bookmarks
+- [ ] Export timecodes to timeline markers
 
----
+## Contributing
 
-## Поддерживаемые форматы файлов
+Ideas, bug reports, and pull requests are welcome.
 
-| Расширение | Описание |
-|---|---|
-| `.txt` | Простой текст |
-| `.fountain` | Fountain screenplay format |
-| `.fdx` | Final Draft (читается как текст, теги будут видны) |
-| `.srt` | SubRip субтитры |
-| `.md` | Markdown |
+## License
 
----
-
-## Разработка в VSCode
-
-Структура файлов:
-```
-ScriptViewer/
-├── ScriptViewer.lua    ← основной файл плагина
-└── README.md
-```
-
-Рекомендуемые расширения VSCode:
-- **sumneko.lua** (Lua Language Server) — синтаксис и автодополнение
-- **actboy168.lua-debug** — отладка Lua
-
-Полезные настройки `.vscode/settings.json`:
-```json
-{
-  "Lua.workspace.library": [],
-  "Lua.diagnostics.globals": [
-    "fu", "ui", "disp", "bmd", "Resolve", "comp", "fusion"
-  ],
-  "Lua.runtime.version": "Lua 5.1",
-  "files.associations": {
-    "*.lua": "lua"
-  }
-}
-```
-
-> DaVinci Resolve использует **Lua 5.1** (через Fusion).  
-> Глобальные объекты Resolve API (`fu`, `bmd`, `Resolve()`) доступны только внутри Resolve, поэтому отладку удобнее делать через `print()` — вывод идёт в `Workspace → Console`.
-
----
-
-## Архитектура
-
-```
-ScriptViewer.lua
-│
-├── smpteToFrames(tc, fps)        — конвертация таймкода в номер кадра
-├── getProjectFPS()               — берёт FPS текущего проекта из Resolve API
-├── jumpToFrame(frames)           — двигает плейхед (SetCurrentTimecode)
-│
-├── parseLines(raw)               — парсит текст, выделяет таймкоды
-├── renderHtml(parsedLines, size) — строит HTML с кликабельными ссылками tc://
-│
-└── UI (Fusion UIManager)
-    ├── BtnOpen         → fu:RequestFile()
-    ├── SpinFontSize    → перерендер HTML
-    ├── TxtScript       → SetHtml() + AnchorClicked event
-    └── BtnClear        → сброс состояния
-```
-
-### Как работает клик по таймкоду
-
-Таймкоды рендерятся как HTML-ссылки с кастомной схемой:
-```html
-<a href="tc://01:23:45:12">01:23:45:12</a>
-```
-Событие `TxtScript.AnchorClicked` ловит URL, парсит таймкод,  
-конвертирует в кадры и вызывает `timeline:SetCurrentTimecode(tc)`.
-
----
-
-## Возможные доработки
-
-- [ ] Поиск по тексту (Ctrl+F)
-- [ ] Автоматическое следование за плейхедом (highlight текущей строки)
-- [ ] Полноценный парсер Fountain (форматирование реплик, ремарок)
-- [ ] Drag & Drop файлов на окно
-- [ ] Закладки на таймкодах
-- [ ] Экспорт таймкодов в маркеры таймлайна
+No license file is included yet. Add one before public release if you want explicit reuse terms.
