@@ -48,9 +48,11 @@ DragonScript v3.0 — финальный стабильный релиз про�
 
 ---
 
-## Установка (macOS)
+## Установка (macOS / Windows)
 
-**1.** Скопируй `DragonScript.lua` в папку скриптов Resolve:
+### macOS
+
+**1.** Скопируй `DragonScript.lua` в папку:
 
 ```text
 ~/Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts/Utility/
@@ -62,13 +64,33 @@ DragonScript v3.0 — финальный стабильный релиз про�
 open "$HOME/Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts/Utility/"
 ```
 
+### Windows
+
+**1.** Скопируй `DragonScript.lua` в одну из папок:
+
+```text
+%APPDATA%\Blackmagic Design\DaVinci Resolve\Support\Fusion\Scripts\Utility\
+```
+
+или (для всех пользователей):
+
+```text
+C:\ProgramData\Blackmagic Design\DaVinci Resolve\Fusion\Scripts\Utility\
+```
+
+Быстро открыть через окно Run (`Win + R`):
+
+```text
+%APPDATA%\Blackmagic Design\DaVinci Resolve\Support\Fusion\Scripts\Utility\
+```
+
 **2.** Запусти скрипт внутри DaVinci Resolve:
 
 ```text
 Workspace → Scripts → Utility → DragonScript
 ```
 
-Перезапуск Resolve обычно не нужен.
+Перезапуск Resolve обычно не нужен (если скрипт не появился в меню, перезапусти Resolve один раз).
 
 ---
 
