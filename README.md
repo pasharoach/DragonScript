@@ -58,10 +58,23 @@ DragonScript v3.0 is the final stable release of this project.
 ~/Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts/Utility/
 ```
 
+If you use the **App Store version**, use:
+
+```text
+~/Library/Containers/com.blackmagic-design.DaVinciResolveLite/Data/Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts/Utility/
+```
+
 Open the folder from Terminal:
 
 ```bash
 open "$HOME/Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts/Utility/"
+```
+
+Create the folder if it does not exist:
+
+```bash
+mkdir -p "$HOME/Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts/Utility/"
+mkdir -p "$HOME/Library/Containers/com.blackmagic-design.DaVinciResolveLite/Data/Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts/Utility/"
 ```
 
 ### Windows
