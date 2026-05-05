@@ -1,5 +1,5 @@
 --[[
-  DragonScript.lua  v1.7
+  DragonScript.lua  v2.2
   DaVinci Resolve / Fusion Script
 --]]
 
@@ -54,6 +54,13 @@ local function trySetCurrentFrame(tl, frame)
   return res and true or false
 end
 
+local function getCurrentTimelineTimecode(tl)
+  if not tl or not tl.GetCurrentTimecode then return nil end
+  local ok, tc = pcall(function() return tl:GetCurrentTimecode() end)
+  if not ok or type(tc) ~= "string" or tc == "" then return nil end
+  return tc
+end
+
 local function jumpToTimecode(tc)
   local tl = getTimeline()
   local resolve, proj = getResolveAndProject()
@@ -64,6 +71,32 @@ local function jumpToTimecode(tc)
 
   local normalized = tc:gsub(";", ":")
   local ok = false
+  local beforeTc = getCurrentTimelineTimecode(tl)
+  if beforeTc then
+    print("[DragonScript] before current tc: "..beforeTc)
+  else
+    print("[DragonScript] before current tc: <unknown>")
+  end
+
+  local function applyAndVerify(label, fn)
+    local callOk, res = pcall(fn)
+    local afterTc = getCurrentTimelineTimecode(tl)
+    print("[DragonScript] "..label.." callOk="..tostring(callOk).." res="..tostring(res).." after="..tostring(afterTc))
+
+    if afterTc and (afterTc == normalized or afterTc == tc) then
+      return true
+    end
+
+    if callOk and res and beforeTc and afterTc and beforeTc ~= afterTc then
+      return true
+    end
+
+    if callOk and res and not beforeTc then
+      return true
+    end
+
+    return false
+  end
 
   if proj and proj.SetCurrentTimeline and tl then
     pcall(function() proj:SetCurrentTimeline(tl) end)
@@ -71,17 +104,25 @@ local function jumpToTimecode(tc)
 
   if tl and tl.SetCurrentTimecode then
     print("[DragonScript] timeline:SetCurrentTimecode("..normalized..")")
-    ok = tl:SetCurrentTimecode(normalized)
+    ok = applyAndVerify("timeline:SetCurrentTimecode("..normalized..")", function()
+      return tl:SetCurrentTimecode(normalized)
+    end)
     if not ok and normalized ~= tc then
-      ok = tl:SetCurrentTimecode(tc)
+      ok = applyAndVerify("timeline:SetCurrentTimecode("..tc..")", function()
+        return tl:SetCurrentTimecode(tc)
+      end)
     end
   end
 
   if not ok and proj and proj.SetCurrentTimecode then
     print("[DragonScript] project:SetCurrentTimecode("..normalized..")")
-    ok = proj:SetCurrentTimecode(normalized)
+    ok = applyAndVerify("project:SetCurrentTimecode("..normalized..")", function()
+      return proj:SetCurrentTimecode(normalized)
+    end)
     if not ok and normalized ~= tc then
-      ok = proj:SetCurrentTimecode(tc)
+      ok = applyAndVerify("project:SetCurrentTimecode("..tc..")", function()
+        return proj:SetCurrentTimecode(tc)
+      end)
     end
   end
 
@@ -122,7 +163,9 @@ local function jumpToTimecode(tc)
 
     for _, frame in ipairs(candidates) do
       print("[DragonScript] timeline:SetCurrentFrame("..tostring(frame)..")")
-      if trySetCurrentFrame(tl, frame) then
+      if applyAndVerify("timeline:SetCurrentFrame("..tostring(frame)..")", function()
+        return trySetCurrentFrame(tl, frame)
+      end) then
         ok = true
         break
       end
@@ -134,7 +177,8 @@ local function jumpToTimecode(tc)
     pcall(function() resolve:OpenPage("edit") end)
   end
 
-  print("[DragonScript] jump result: "..tostring(ok))
+  local finalTc = getCurrentTimelineTimecode(tl)
+  print("[DragonScript] jump result: "..tostring(ok).." final tc="..tostring(finalTc))
   return ok
 end
 
@@ -164,6 +208,30 @@ local function findTcAtPos(text, pos)
     return token
   end
   return nil
+end
+
+local function findTcNearPos(text, pos)
+  if not text or text == "" or not pos then return nil end
+  local from = math.max(1, pos - 24)
+  local to   = math.min(#text, pos + 24)
+  local chunk = text:sub(from, to)
+
+  local bestTc, bestDist = nil, 999999
+  local scanPos = 1
+  while scanPos <= #chunk do
+    local s, e = chunk:find(TC_PATTERN, scanPos)
+    if not s then break end
+    local absS = from + s - 1
+    local absE = from + e - 1
+    local mid = math.floor((absS + absE) / 2)
+    local dist = math.abs(mid - pos)
+    if dist < bestDist then
+      bestDist = dist
+      bestTc = text:sub(absS, absE)
+    end
+    scanPos = e + 1
+  end
+  return bestTc
 end
 
 local function selectedTc()
@@ -202,6 +270,24 @@ local function cursorPosFromEvent(ev)
   end
 
   return nil
+end
+
+local function detectTcFromWidget(ev)
+  local tc = selectedTc()
+  if tc then return tc end
+
+  local textEdit = itm and itm.TxtMain
+  if not textEdit then return nil end
+  local text = textEdit.PlainText or ""
+  if text == "" then return nil end
+
+  local pos = cursorPosFromEvent(ev)
+  if not pos then return nil end
+
+  tc = findTcAtPos(text, pos)
+  if tc then return tc end
+
+  return findTcNearPos(text, pos)
 end
 
 -- ─── Чтение файлов ───────────────────────────────────────────────────────────
@@ -337,6 +423,7 @@ local state = {
   mode     = "view",
   lastPath = nil,
   lastJumpTc = nil,
+  lastJumpClock = 0,
 }
 
 -- ─── UI ──────────────────────────────────────────────────────────────────────
@@ -368,7 +455,30 @@ local win = disp:AddWindow({
       },
     },
 
-    ui:TextEdit{ ID="TxtMain", ReadOnly=true, Weight=1 },
+    ui:HGroup{
+      Weight=0, Spacing=4,
+      ui:Label{ Text="Jump TC:", Weight=0, Alignment={AlignLeft=true, AlignVCenter=true} },
+      ui:LineEdit{
+        ID="TxtJumpTc",
+        Text="",
+        PlaceholderText="01:00:00:00",
+        MinimumSize={140,30},
+        Weight=0,
+        Events={ ReturnPressed=true },
+      },
+      ui:Button{ ID="BtnJumpTc", Text="Go", MinimumSize={56,30}, Weight=0 },
+      ui:HGap(0, 1),
+    },
+
+    ui:TextEdit{
+      ID="TxtMain", ReadOnly=true, Weight=1,
+      Events={
+        CursorPositionChanged=true,
+        SelectionChanged=true,
+        MousePress=true,
+        MouseRelease=true,
+      },
+    },
 
     ui:HGroup{
       Weight=0,
@@ -398,6 +508,30 @@ local function setStatus(msg)
   itm.LblStatus.Text = msg
 end
 
+local function tryJumpInput(tc)
+  local clean = tostring(tc or ""):gsub("^%s+",""):gsub("%s+$","")
+  if clean == "" then
+    setStatus("Введите таймкод, например 01:00:00:00")
+    return
+  end
+
+  local matchTc = clean:match(TC_PATTERN)
+  if not matchTc then
+    setStatus("Неверный формат TC: "..clean)
+    return
+  end
+
+  print("[DragonScript] manual jump request: "..matchTc)
+  local ok = jumpToTimecode(matchTc)
+  if ok then
+    state.lastJumpTc = matchTc
+    state.lastJumpClock = os.clock()
+    setStatus("OK: jumped to "..matchTc.." (manual)")
+  else
+    setStatus("ERR: cannot jump to "..matchTc.." (manual)")
+  end
+end
+
 -- ─── Режимы ──────────────────────────────────────────────────────────────────
 
 local function enterViewMode()
@@ -407,8 +541,9 @@ local function enterViewMode()
     state.parsed  = parseText(state.rawText)
   end
 
-  -- Сначала ReadOnly=true — Qt начинает режим просмотра
-  itm.TxtMain.ReadOnly = true
+  -- В некоторых версиях Resolve клики по HTML-якорям не дают отдельного события.
+  -- Оставляем курсор активным, чтобы CursorPositionChanged ловил клик по таймкоду.
+  itm.TxtMain.ReadOnly = false
   state.mode = "view"
   itm.BtnToggle.Text = "Edit"
 
@@ -448,7 +583,8 @@ win.On.BtnOpen.Clicked = function()
   state.lastPath = path
   state.mode     = "view"
 
-  itm.TxtMain.ReadOnly = true
+  -- См. комментарий в enterViewMode: курсор должен быть активен в режиме view.
+  itm.TxtMain.ReadOnly = false
   itm.BtnToggle.Text   = "Edit"
 
   itm.LblFile.Text = path:match("([^/]+)$") or path
@@ -472,51 +608,64 @@ win.On.SpinSize.ValueChanged = function(ev)
   end
 end
 
-win.On.TxtMain.AnchorClicked = function(ev)
-  local url = tostring(ev.URL or "")
-  local tc  = url:match(TC_PATTERN)
-  if not tc then
-    local raw = url:match("^tc://(.+)$")
-    if raw then tc = raw:match(TC_PATTERN) or raw end
-  end
-  if not tc then
-    print("[DragonScript] AnchorClicked: no tc in URL: "..url)
-    return
-  end
-  print("[DragonScript] AnchorClicked: "..tc)
-  setStatus("-> "..tc)
-  local ok = jumpToTimecode(tc)
-  if ok then state.lastJumpTc = tc end
-  setStatus(ok and ("OK: jumped to "..tc) or ("ERR: no timeline ("..tc..")"))
+win.On.BtnJumpTc.Clicked = function()
+  tryJumpInput(itm.TxtJumpTc.Text)
 end
 
-local function tryJumpFromEditCursor(ev)
-  if state.mode ~= "edit" then return end
+win.On.TxtJumpTc.ReturnPressed = function()
+  tryJumpInput(itm.TxtJumpTc.Text)
+end
 
-  local tc = selectedTc()
+local function tcFromLinkAtPoint(pos)
+  local textEdit = itm and itm.TxtMain
+  if not textEdit or not pos then return nil end
+
+  local okAnchor, anchor = pcall(function() return textEdit:AnchorAt(pos) end)
+  if (not okAnchor or not anchor or anchor == "") and textEdit.AnchorAt then
+    okAnchor, anchor = pcall(function() return textEdit.AnchorAt(pos) end)
+  end
+
+  anchor = tostring(anchor or "")
+  if anchor == "" then return nil end
+
+  local tc = anchor:match(TC_PATTERN)
   if not tc then
-    local text = itm.TxtMain.PlainText or ""
-    local pos  = cursorPosFromEvent(ev)
-    tc = findTcAtPos(text, pos)
+    local raw = anchor:match("^tc://(.+)$")
+    if raw then tc = raw:match(TC_PATTERN) or raw end
   end
+  return tc
+end
 
-  if not tc or tc == state.lastJumpTc then return end
+local function tcFromCursor(ev)
+  local tc = detectTcFromWidget(ev)
+  return tc
+end
 
-  local ok = jumpToTimecode(tc)
-  if ok then
-    state.lastJumpTc = tc
-    setStatus("OK: jumped to "..tc.." (edit)")
-  else
-    setStatus("ERR: cannot jump to "..tc.." (edit)")
-  end
+local function putTcIntoJumpField(tc, origin)
+  if not tc or tc == "" then return end
+  itm.TxtJumpTc.Text = tc
+  setStatus("TC -> Jump: "..tc)
+  print("[DragonScript] "..(origin or "click").." selected tc: "..tc)
 end
 
 win.On.TxtMain.CursorPositionChanged = function(ev)
-  tryJumpFromEditCursor(ev)
+  -- Keep silent: no auto-jump on cursor movement.
 end
 
 win.On.TxtMain.SelectionChanged = function(ev)
-  tryJumpFromEditCursor(ev)
+  -- Keep silent: no auto-jump on selection change.
+end
+
+win.On.TxtMain.MouseRelease = function(ev)
+  print("[DragonScript] MouseRelease on TxtMain")
+  local tc = nil
+  if state.mode == "view" then
+    tc = tcFromLinkAtPoint(ev and ev.Pos)
+  end
+  if not tc then
+    tc = tcFromCursor(ev)
+  end
+  putTcIntoJumpField(tc, "MouseRelease")
 end
 
 win.On.BtnSaveAs.Clicked = function()
@@ -604,7 +753,7 @@ showHtml([[<html><body style="background-color:#1a1a1a;color:#555;]]
   ..[[font-family:'Courier New',monospace;font-size:13px;">]]
   ..[[<br>&nbsp;&nbsp;Open a file to begin...</body></html>]])
 
-print("[DragonScript] v1.7 started")
+print("[DragonScript] v2.2 started")
 win:Show()
 disp:RunLoop()
 win:Hide()
