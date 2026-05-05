@@ -1,7 +1,7 @@
 # DragonScript for DaVinci Resolve
 
 [![Lua](https://img.shields.io/badge/Lua-5.1-2C2D72?logo=lua&logoColor=white)](https://www.lua.org/)
-[![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-111111?logo=windows&logoColor=white)](#installation-macos--windows)
+[![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-111111?logo=windows&logoColor=white)](#installation-simple)
 [![Version](https://img.shields.io/badge/Version-3.0-FF8A00)](#changelog)
 [![Status](https://img.shields.io/badge/Status-Final%20Release-0A7D32)](#project-status)
 [![License: MIT](https://img.shields.io/badge/License-MIT-0E8A16.svg)](LICENSE)
@@ -12,7 +12,7 @@
 
 Read your script inside DaVinci Resolve and jump the playhead to any timecode in one click — without leaving the app.
 
-DragonScript is a lightweight Lua utility for DaVinci Resolve / Fusion. It opens text documents in a floating panel, highlights SMPTE timecodes in the text, and moves the playhead when you click a timecode in the right-side list.
+DragonScript is a lightweight Lua tool for DaVinci Resolve / Fusion. It opens text documents in a floating panel, highlights SMPTE timecodes in the text, and moves the playhead when you click a timecode in the right-side list.
 
 ---
 
@@ -48,85 +48,40 @@ DragonScript v3.0 is the final stable release of this project.
 
 ---
 
-## Installation (macOS / Windows)
+## Installation (simple)
 
-### macOS
+### Works for macOS, App Store builds, and Windows
 
-**1.** Copy `DragonScript.lua` to:
+1. Open DaVinci Resolve → **Fusion** page → **Console**.
+2. In **Lua** console, run:
 
-```text
-~/Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts/Utility/
+```lua
+print(fu:MapPath("Scripts:/Edit/"))
 ```
 
-If you use the **App Store version**, use:
+3. Copy `DragonScript.lua` to the exact folder printed by Resolve.
 
-```text
-~/Library/Containers/com.blackmagic-design.DaVinciResolveLite/Data/Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts/Utility/
-```
+- If you copy to `Scripts:/Edit/`, script appears in:
+  `Workspace → Scripts → Edit`
 
-Open the folder from Terminal:
+4. Restart Resolve once.
+5. Run from the corresponding menu section.
 
-```bash
-open "$HOME/Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts/Utility/"
-```
+### If the script still does not appear
 
-Create the folder if it does not exist:
-
-```bash
-mkdir -p "$HOME/Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts/Utility/"
-mkdir -p "$HOME/Library/Containers/com.blackmagic-design.DaVinciResolveLite/Data/Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts/Utility/"
-```
-
-### Windows
-
-**1.** Copy `DragonScript.lua` to one of these folders:
-
-```text
-%APPDATA%\Blackmagic Design\DaVinci Resolve\Support\Fusion\Scripts\Utility\
-```
-
-or (all users):
-
-```text
-C:\ProgramData\Blackmagic Design\DaVinci Resolve\Fusion\Scripts\Utility\
-```
-
-Quick open from Run (`Win + R`):
-
-```text
-%APPDATA%\Blackmagic Design\DaVinci Resolve\Support\Fusion\Scripts\Utility\
-```
-
-**2.** Run the script inside DaVinci Resolve:
-
-```text
-Workspace → Scripts → Utility → DragonScript
-```
-
-Resolve restart is usually not required (if the script does not appear, restart Resolve once).
+1. Preferences → System → General → **External scripting using = Local**.
+2. File name must be exactly `DragonScript.lua`.
+3. File must be directly inside the `Edit` folder.
 
 ---
 
-## Troubleshooting (script not visible)
+## Common Default Paths (optional)
 
-Official Resolve scripting docs list these base folders for menu scripts on macOS:
+Use these only if you cannot access the console.
 
-1. /Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts
-2. ~/Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts
-
-For App Store builds, Resolve may read from the sandbox container path instead.
-
-If DragonScript does not appear in Workspace > Scripts > Utility:
-
-1. Check Preferences > System > General > External scripting using = Local.
-2. Ensure file name is exactly DragonScript.lua.
-3. Confirm file is inside a Utility subfolder.
-4. Restart Resolve once.
-5. If still missing, place the file in both regular and container paths.
-
-Quick verify command (Terminal):
-
-find "$HOME/Library" -type f -name "DragonScript.lua" 2>/dev/null | grep -E "Fusion/Scripts/Utility|Support/Fusion/Scripts/Utility"
+- macOS (regular): `~/Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts/Edit/`
+- macOS (App Store, common): `~/Library/Containers/com.blackmagic-design.DaVinciResolveAppStore/Data/Library/Application Support/Fusion/Scripts/Edit/`
+- Windows (user): `%APPDATA%\Blackmagic Design\DaVinci Resolve\Support\Fusion\Scripts\Edit\`
 
 ---
 

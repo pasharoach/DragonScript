@@ -1,7 +1,7 @@
 # DragonScript для DaVinci Resolve
 
 [![Lua](https://img.shields.io/badge/Lua-5.1-2C2D72?logo=lua&logoColor=white)](https://www.lua.org/)
-[![Платформа](https://img.shields.io/badge/Платформа-macOS%20%7C%20Windows-111111?logo=windows&logoColor=white)](#установка-macos--windows)
+[![Платформа](https://img.shields.io/badge/Платформа-macOS%20%7C%20Windows-111111?logo=windows&logoColor=white)](#установка-простой-способ)
 [![Версия](https://img.shields.io/badge/Версия-3.0-FF8A00)](#changelog)
 [![Статус](https://img.shields.io/badge/Статус-Финальный%20релиз-0A7D32)](#статус-проекта)
 [![Лицензия: MIT](https://img.shields.io/badge/License-MIT-0E8A16.svg)](LICENSE)
@@ -48,85 +48,40 @@ DragonScript v3.0 — финальный стабильный релиз про�
 
 ---
 
-## Установка (macOS / Windows)
+## Установка (простой способ)
 
-### macOS
+### Для macOS, App Store и Windows
 
-**1.** Скопируй `DragonScript.lua` в папку:
+1. Открой DaVinci Resolve → страницу **Fusion** → **Console**.
+2. В консоли **Lua** выполни:
 
-```text
-~/Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts/Utility/
+```lua
+print(fu:MapPath("Scripts:/Edit/"))
 ```
 
-Если используется **версия из App Store**, путь такой:
+3. Скопируй `DragonScript.lua` точно в путь, который вывел Resolve.
 
-```text
-~/Library/Containers/com.blackmagic-design.DaVinciResolveLite/Data/Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts/Utility/
-```
+- Если положить в `Scripts:/Edit/`, скрипт появится в:
+  `Workspace → Scripts → Edit`
 
-Быстро открыть папку через Terminal:
+4. Перезапусти Resolve один раз.
+5. Запусти скрипт из соответствующего раздела меню.
 
-```bash
-open "$HOME/Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts/Utility/"
-```
+### Если скрипт не появился
 
-Создать папку, если её нет:
-
-```bash
-mkdir -p "$HOME/Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts/Utility/"
-mkdir -p "$HOME/Library/Containers/com.blackmagic-design.DaVinciResolveLite/Data/Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts/Utility/"
-```
-
-### Windows
-
-**1.** Скопируй `DragonScript.lua` в одну из папок:
-
-```text
-%APPDATA%\Blackmagic Design\DaVinci Resolve\Support\Fusion\Scripts\Utility\
-```
-
-или (для всех пользователей):
-
-```text
-C:\ProgramData\Blackmagic Design\DaVinci Resolve\Fusion\Scripts\Utility\
-```
-
-Быстро открыть через окно Run (`Win + R`):
-
-```text
-%APPDATA%\Blackmagic Design\DaVinci Resolve\Support\Fusion\Scripts\Utility\
-```
-
-**2.** Запусти скрипт внутри DaVinci Resolve:
-
-```text
-Workspace → Scripts → Utility → DragonScript
-```
-
-Перезапуск Resolve обычно не нужен (если скрипт не появился в меню, перезапусти Resolve один раз).
+1. Preferences → System → General → **External scripting using = Local**.
+2. Имя файла должно быть строго `DragonScript.lua`.
+3. Файл должен лежать напрямую в папке `Edit`.
 
 ---
 
-## Диагностика (скрипт не виден)
+## Типовые пути (опционально)
 
-Официальная документация Resolve по скриптам указывает базовые папки для macOS:
+Используй только если нет доступа к консоли.
 
-1. /Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts
-2. ~/Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts
-
-Для версии из App Store Resolve может читать путь внутри sandbox-контейнера.
-
-Если DragonScript не видно в Workspace > Scripts > Utility:
-
-1. Проверь Preferences > System > General > External scripting using = Local.
-2. Убедись, что имя файла строго DragonScript.lua.
-3. Проверь, что файл лежит в подпапке Utility.
-4. Перезапусти Resolve один раз.
-5. Если не появился, положи файл и в обычный путь, и в container-путь.
-
-Быстрая проверка через Terminal:
-
-find "$HOME/Library" -type f -name "DragonScript.lua" 2>/dev/null | grep -E "Fusion/Scripts/Utility|Support/Fusion/Scripts/Utility"
+- macOS (обычная версия): `~/Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts/Edit/`
+- macOS (App Store, часто): `~/Library/Containers/com.blackmagic-design.DaVinciResolveAppStore/Data/Library/Application Support/Fusion/Scripts/Edit/`
+- Windows (пользователь): `%APPDATA%\Blackmagic Design\DaVinci Resolve\Support\Fusion\Scripts\Edit\`
 
 ---
 
