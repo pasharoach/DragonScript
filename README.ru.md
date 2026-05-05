@@ -1,7 +1,7 @@
 # DragonScript для DaVinci Resolve
 
 [![Lua](https://img.shields.io/badge/Lua-5.1-2C2D72?logo=lua&logoColor=white)](https://www.lua.org/)
-[![Платформа](https://img.shields.io/badge/Платформа-macOS-111111?logo=apple&logoColor=white)](#установка-macos)
+[![Платформа](https://img.shields.io/badge/Платформа-macOS%20%7C%20Windows-111111?logo=windows&logoColor=white)](#установка-macos--windows)
 [![Версия](https://img.shields.io/badge/Версия-3.0-FF8A00)](#changelog)
 [![Статус](https://img.shields.io/badge/Статус-Финальный%20релиз-0A7D32)](#статус-проекта)
 [![Лицензия: MIT](https://img.shields.io/badge/License-MIT-0E8A16.svg)](LICENSE)
@@ -134,7 +134,7 @@ Workspace → Scripts → Utility → DragonScript
 - **Язык:** Lua 5.1 (Fusion scripting внутри DaVinci Resolve)
 - **UI:** Fusion `UIManager` / `bmd.UIDispatcher`
 - **Resolve API:** `Resolve()` → `GetCurrentTimeline()` → `SetCurrentTimecode()`
-- **Платформа:** macOS (тестировалось на DaVinci Resolve 18 / 19)
+- **Платформа:** macOS и Windows (тестировалось на DaVinci Resolve 18 / 19)
 
 ---
 

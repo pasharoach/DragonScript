@@ -1,7 +1,7 @@
 # DragonScript for DaVinci Resolve
 
 [![Lua](https://img.shields.io/badge/Lua-5.1-2C2D72?logo=lua&logoColor=white)](https://www.lua.org/)
-[![Platform](https://img.shields.io/badge/Platform-macOS-111111?logo=apple&logoColor=white)](#installation-macos)
+[![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-111111?logo=windows&logoColor=white)](#installation-macos--windows)
 [![Version](https://img.shields.io/badge/Version-3.0-FF8A00)](#changelog)
 [![Status](https://img.shields.io/badge/Status-Final%20Release-0A7D32)](#project-status)
 [![License: MIT](https://img.shields.io/badge/License-MIT-0E8A16.svg)](LICENSE)
@@ -134,7 +134,7 @@ Resolve restart is usually not required (if the script does not appear, restart 
 - **Language:** Lua 5.1 (Fusion scripting inside DaVinci Resolve)
 - **UI:** Fusion `UIManager` / `bmd.UIDispatcher`
 - **Resolve API:** `Resolve()` → `GetCurrentTimeline()` → `SetCurrentTimecode()`
-- **Platform:** macOS (tested on DaVinci Resolve 18 / 19)
+- **Platform:** macOS and Windows (tested on DaVinci Resolve 18 / 19)
 
 ---
 
