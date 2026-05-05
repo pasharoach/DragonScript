@@ -1,4 +1,4 @@
-# ScriptViewer for DaVinci Resolve
+# DragonScript for DaVinci Resolve
 
 [![Lua](https://img.shields.io/badge/Lua-5.1-2C2D72?logo=lua&logoColor=white)](https://www.lua.org/)
 [![Platform](https://img.shields.io/badge/Platform-macOS-111111?logo=apple&logoColor=white)](#installation-macos)
@@ -8,17 +8,18 @@
 
 [Русская версия](README.ru.md)
 
-![ScriptViewer banner](assets/banner.svg)
+![DragonScript banner](assets/banner.svg)
 
 Read scripts inside Resolve and jump to exact moments with one click.
 
-ScriptViewer is a lightweight Lua utility for DaVinci Resolve/Fusion that opens text documents in a dedicated panel, highlights SMPTE timecodes, and moves the playhead when you click them.
+DragonScript is a lightweight Lua utility for DaVinci Resolve/Fusion that opens text documents in a dedicated panel, highlights SMPTE timecodes, and moves the playhead when you click them.
 
 ## Highlights
 
 - No app switching: keep your script and timeline in the same workspace.
 - Clickable SMPTE timecodes for fast timeline navigation.
 - View/Edit workflow for quick in-app text fixes.
+- Edit mode support: click/place cursor on a timecode (or select it) to jump.
 - Save As always exports plain text `.txt`.
 - Supports common screenplay and production note formats.
 
@@ -35,7 +36,7 @@ ScriptViewer is a lightweight Lua utility for DaVinci Resolve/Fusion that opens 
 
 ## Installation (macOS)
 
-1. Copy `ScriptViewer.lua` to:
+1. Copy `DragonScript.lua` to:
 
 ```text
 ~/Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts/Utility/
@@ -44,7 +45,7 @@ ScriptViewer is a lightweight Lua utility for DaVinci Resolve/Fusion that opens 
 2. Start DaVinci Resolve and run:
 
 ```text
-Workspace -> Scripts -> Utility -> ScriptViewer
+Workspace -> Scripts -> Utility -> DragonScript
 ```
 
 3. Resolve restart is usually not required.

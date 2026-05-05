@@ -1,5 +1,5 @@
 --[[
-  ScriptViewer.lua  v1.5
+  DragonScript.lua  v1.7
   DaVinci Resolve / Fusion Script
 --]]
 
@@ -20,6 +20,14 @@ local function getTimeline()
   return proj and proj:GetCurrentTimeline()
 end
 
+local function getResolveAndProject()
+  local ok, r = pcall(function() return Resolve() end)
+  if not ok or not r then return nil, nil end
+  local pm   = r:GetProjectManager()
+  local proj = pm and pm:GetCurrentProject()
+  return r, proj
+end
+
 local function getProjectFPS()
   local ok, r = pcall(function() return Resolve() end)
   if not ok or not r then return 24 end
@@ -29,21 +37,171 @@ local function getProjectFPS()
   return tonumber(proj:GetSetting("timelineFrameRate")) or 24
 end
 
+local function tcToFrames(tc, fps)
+  local h, m, s, f = tc:match("^(%d%d):(%d%d):(%d%d)[;:](%d%d)$")
+  if not h then return nil end
+  local base = math.max(1, math.floor((tonumber(fps) or 24) + 0.5))
+  h, m, s, f = tonumber(h), tonumber(m), tonumber(s), tonumber(f)
+  if not (h and m and s and f) then return nil end
+  return (((h * 60 + m) * 60) + s) * base + f
+end
+
+local function trySetCurrentFrame(tl, frame)
+  if not tl or not tl.SetCurrentFrame or type(frame) ~= "number" then return false end
+  if frame < 0 then return false end
+  local ok, res = pcall(function() return tl:SetCurrentFrame(frame) end)
+  if not ok then return false end
+  return res and true or false
+end
+
 local function jumpToTimecode(tc)
   local tl = getTimeline()
-  if not tl then
-    print("[ScriptViewer] jumpToTimecode: no timeline")
+  local resolve, proj = getResolveAndProject()
+  if not tl and not proj then
+    print("[DragonScript] jumpToTimecode: no timeline/project")
     return false
   end
+
   local normalized = tc:gsub(";", ":")
-  print("[ScriptViewer] SetCurrentTimecode("..normalized..")")
-  local ok = tl:SetCurrentTimecode(normalized)
-  if not ok and normalized ~= tc then
-    -- Fallback for versions that accept drop-frame separator as-is.
-    ok = tl:SetCurrentTimecode(tc)
+  local ok = false
+
+  if proj and proj.SetCurrentTimeline and tl then
+    pcall(function() proj:SetCurrentTimeline(tl) end)
   end
-  print("[ScriptViewer] result: "..tostring(ok))
+
+  if tl and tl.SetCurrentTimecode then
+    print("[DragonScript] timeline:SetCurrentTimecode("..normalized..")")
+    ok = tl:SetCurrentTimecode(normalized)
+    if not ok and normalized ~= tc then
+      ok = tl:SetCurrentTimecode(tc)
+    end
+  end
+
+  if not ok and proj and proj.SetCurrentTimecode then
+    print("[DragonScript] project:SetCurrentTimecode("..normalized..")")
+    ok = proj:SetCurrentTimecode(normalized)
+    if not ok and normalized ~= tc then
+      ok = proj:SetCurrentTimecode(tc)
+    end
+  end
+
+  if not ok and tl then
+    local fps = getProjectFPS()
+    local targetFrames = tcToFrames(normalized, fps)
+    local relFrames = targetFrames
+
+    if targetFrames and tl.GetStartTimecode then
+      local okStartTc, startTc = pcall(function() return tl:GetStartTimecode() end)
+      if okStartTc and type(startTc) == "string" and startTc ~= "" then
+        local startFrames = tcToFrames(startTc, fps)
+        if startFrames then
+          relFrames = targetFrames - startFrames
+        end
+      end
+    end
+
+    local candidates = {}
+    local seen = {}
+    local function addCandidate(v)
+      if type(v) ~= "number" then return end
+      if seen[v] then return end
+      seen[v] = true
+      candidates[#candidates + 1] = v
+    end
+
+    addCandidate(relFrames)
+    addCandidate(targetFrames)
+
+    if tl.GetStartFrame then
+      local okStartFrame, startFrame = pcall(function() return tonumber(tl:GetStartFrame()) end)
+      if okStartFrame and startFrame then
+        addCandidate(startFrame + (relFrames or 0))
+        addCandidate(startFrame + (targetFrames or 0))
+      end
+    end
+
+    for _, frame in ipairs(candidates) do
+      print("[DragonScript] timeline:SetCurrentFrame("..tostring(frame)..")")
+      if trySetCurrentFrame(tl, frame) then
+        ok = true
+        break
+      end
+    end
+  end
+
+  if ok and resolve and resolve.OpenPage then
+    -- Keep the playhead move visible in the Edit page.
+    pcall(function() resolve:OpenPage("edit") end)
+  end
+
+  print("[DragonScript] jump result: "..tostring(ok))
   return ok
+end
+
+local function findTcAtPos(text, pos)
+  if not text or text=="" or not pos then return nil end
+  local n = #text
+  if n == 0 then return nil end
+
+  if pos < 1 then pos = 1 end
+  if pos > n then pos = n end
+
+  local function isTcChar(ch)
+    return ch and ch:match("[%d:;]") ~= nil
+  end
+
+  if not isTcChar(text:sub(pos, pos)) and pos > 1 and isTcChar(text:sub(pos-1, pos-1)) then
+    pos = pos - 1
+  end
+  if not isTcChar(text:sub(pos, pos)) then return nil end
+
+  local s, e = pos, pos
+  while s > 1 and isTcChar(text:sub(s-1, s-1)) do s = s - 1 end
+  while e < n and isTcChar(text:sub(e+1, e+1)) do e = e + 1 end
+
+  local token = text:sub(s, e)
+  if token:match("^"..TC_PATTERN.."$") then
+    return token
+  end
+  return nil
+end
+
+local function selectedTc()
+  local textEdit = itm and itm.TxtMain
+  if not textEdit then return nil end
+  local ok, sel = pcall(function() return textEdit.SelectedText end)
+  if not ok or type(sel)~="string" or sel=="" then return nil end
+  return sel:match(TC_PATTERN)
+end
+
+local function cursorPosFromEvent(ev)
+  local keys = {"Pos", "Position", "CursorPosition", "Index", "NewPosition", "Caret"}
+
+  if type(ev)=="table" then
+    for _, k in ipairs(keys) do
+      local v = ev[k]
+      if type(v)=="number" then return math.floor(v) + 1 end
+      if type(v)=="string" then
+        local n = tonumber(v)
+        if n then return math.floor(n) + 1 end
+      end
+    end
+  end
+
+  for _, prop in ipairs(keys) do
+    local textEdit = itm and itm.TxtMain
+    if not textEdit then break end
+    local ok, v = pcall(function() return textEdit[prop] end)
+    if ok then
+      if type(v)=="number" then return math.floor(v) + 1 end
+      if type(v)=="string" then
+        local n = tonumber(v)
+        if n then return math.floor(n) + 1 end
+      end
+    end
+  end
+
+  return nil
 end
 
 -- ─── Чтение файлов ───────────────────────────────────────────────────────────
@@ -178,13 +336,14 @@ local state = {
   fps      = 24,
   mode     = "view",
   lastPath = nil,
+  lastJumpTc = nil,
 }
 
 -- ─── UI ──────────────────────────────────────────────────────────────────────
 
 local win = disp:AddWindow({
   ID          = "SVWin",
-  WindowTitle = "Script Viewer",
+  WindowTitle = "DragonScript",
   Geometry    = { 180, 80, WIN_W, WIN_H },
   MinimumSize = { 500, 400 },
 
@@ -321,13 +480,43 @@ win.On.TxtMain.AnchorClicked = function(ev)
     if raw then tc = raw:match(TC_PATTERN) or raw end
   end
   if not tc then
-    print("[ScriptViewer] AnchorClicked: no tc in URL: "..url)
+    print("[DragonScript] AnchorClicked: no tc in URL: "..url)
     return
   end
-  print("[ScriptViewer] AnchorClicked: "..tc)
+  print("[DragonScript] AnchorClicked: "..tc)
   setStatus("-> "..tc)
   local ok = jumpToTimecode(tc)
+  if ok then state.lastJumpTc = tc end
   setStatus(ok and ("OK: jumped to "..tc) or ("ERR: no timeline ("..tc..")"))
+end
+
+local function tryJumpFromEditCursor(ev)
+  if state.mode ~= "edit" then return end
+
+  local tc = selectedTc()
+  if not tc then
+    local text = itm.TxtMain.PlainText or ""
+    local pos  = cursorPosFromEvent(ev)
+    tc = findTcAtPos(text, pos)
+  end
+
+  if not tc or tc == state.lastJumpTc then return end
+
+  local ok = jumpToTimecode(tc)
+  if ok then
+    state.lastJumpTc = tc
+    setStatus("OK: jumped to "..tc.." (edit)")
+  else
+    setStatus("ERR: cannot jump to "..tc.." (edit)")
+  end
+end
+
+win.On.TxtMain.CursorPositionChanged = function(ev)
+  tryJumpFromEditCursor(ev)
+end
+
+win.On.TxtMain.SelectionChanged = function(ev)
+  tryJumpFromEditCursor(ev)
 end
 
 win.On.BtnSaveAs.Clicked = function()
@@ -415,7 +604,7 @@ showHtml([[<html><body style="background-color:#1a1a1a;color:#555;]]
   ..[[font-family:'Courier New',monospace;font-size:13px;">]]
   ..[[<br>&nbsp;&nbsp;Open a file to begin...</body></html>]])
 
-print("[ScriptViewer] v1.5 started")
+print("[DragonScript] v1.7 started")
 win:Show()
 disp:RunLoop()
 win:Hide()
