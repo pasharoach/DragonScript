@@ -1,5 +1,5 @@
 --[[
-  DragonScript.lua  v2.2
+  DragonScript.lua  v3.0
   DaVinci Resolve / Fusion Script
 --]]
 
@@ -65,23 +65,16 @@ local function jumpToTimecode(tc)
   local tl = getTimeline()
   local resolve, proj = getResolveAndProject()
   if not tl and not proj then
-    print("[DragonScript] jumpToTimecode: no timeline/project")
     return false
   end
 
   local normalized = tc:gsub(";", ":")
   local ok = false
   local beforeTc = getCurrentTimelineTimecode(tl)
-  if beforeTc then
-    print("[DragonScript] before current tc: "..beforeTc)
-  else
-    print("[DragonScript] before current tc: <unknown>")
-  end
 
   local function applyAndVerify(label, fn)
     local callOk, res = pcall(fn)
     local afterTc = getCurrentTimelineTimecode(tl)
-    print("[DragonScript] "..label.." callOk="..tostring(callOk).." res="..tostring(res).." after="..tostring(afterTc))
 
     if afterTc and (afterTc == normalized or afterTc == tc) then
       return true
@@ -103,8 +96,7 @@ local function jumpToTimecode(tc)
   end
 
   if tl and tl.SetCurrentTimecode then
-    print("[DragonScript] timeline:SetCurrentTimecode("..normalized..")")
-    ok = applyAndVerify("timeline:SetCurrentTimecode("..normalized..")", function()
+    ok = applyAndVerify("timeline:SetCurrentTimecode("..normalized..")"  , function()
       return tl:SetCurrentTimecode(normalized)
     end)
     if not ok and normalized ~= tc then
@@ -115,8 +107,7 @@ local function jumpToTimecode(tc)
   end
 
   if not ok and proj and proj.SetCurrentTimecode then
-    print("[DragonScript] project:SetCurrentTimecode("..normalized..")")
-    ok = applyAndVerify("project:SetCurrentTimecode("..normalized..")", function()
+    ok = applyAndVerify("project:SetCurrentTimecode("..normalized..")"  , function()
       return proj:SetCurrentTimecode(normalized)
     end)
     if not ok and normalized ~= tc then
@@ -162,8 +153,7 @@ local function jumpToTimecode(tc)
     end
 
     for _, frame in ipairs(candidates) do
-      print("[DragonScript] timeline:SetCurrentFrame("..tostring(frame)..")")
-      if applyAndVerify("timeline:SetCurrentFrame("..tostring(frame)..")", function()
+      if applyAndVerify("timeline:SetCurrentFrame("..tostring(frame)..")"  , function()
         return trySetCurrentFrame(tl, frame)
       end) then
         ok = true
@@ -177,8 +167,6 @@ local function jumpToTimecode(tc)
     pcall(function() resolve:OpenPage("edit") end)
   end
 
-  local finalTc = getCurrentTimelineTimecode(tl)
-  print("[DragonScript] jump result: "..tostring(ok).." final tc="..tostring(finalTc))
   return ok
 end
 
@@ -290,6 +278,55 @@ local function detectTcFromWidget(ev)
   return findTcNearPos(text, pos)
 end
 
+local function collectTimecodesFromRaw(raw)
+  local out = {}
+  local lines = {}
+
+  local function takeWords(s, maxWords)
+    local words = {}
+    for w in s:gmatch("%S+") do
+      words[#words+1] = w
+      if #words >= maxWords then break end
+    end
+    return table.concat(words, " ")
+  end
+
+  for line in (tostring(raw or "").."\n"):gmatch("([^\n]*)\n") do
+    lines[#lines + 1] = line
+  end
+
+  for lineNo, line in ipairs(lines) do
+    local pos = 1
+    while true do
+      local s, e = line:find(TC_PATTERN, pos)
+      if not s then break end
+
+      local tail = line:sub(e + 1):gsub("^%s+", "")
+      local preview = takeWords(tail, 7)
+      if preview == "" then
+        for i = lineNo + 1, #lines do
+          local candidate = takeWords((lines[i] or ""):gsub("^%s+", ""), 7)
+          if candidate ~= "" then
+            preview = candidate
+            break
+          end
+        end
+      end
+
+      local anchor = "tc_"..tostring(#out + 1)
+      out[#out+1] = {
+        tc = line:sub(s, e),
+        line = lineNo,
+        text = line,
+        preview = preview,
+        anchor = anchor,
+      }
+      pos = e + 1
+    end
+  end
+  return out
+end
+
 -- ─── Чтение файлов ───────────────────────────────────────────────────────────
 
 local function shellRead(cmd)
@@ -391,15 +428,18 @@ end
 
 local function buildHtml(parsed, fontSize)
   local t = {}
+  local tcIndex = 0
   t[#t+1] = string.format([[<html><body style="font-family:'Courier New',monospace;]]
     ..[[font-size:%dpx;background-color:#1a1a1a;color:#cccccc;">]], fontSize)
   for _, segs in ipairs(parsed) do
     for _, seg in ipairs(segs) do
       if seg.isTc then
+        tcIndex = tcIndex + 1
+        local anchorName = "tc_"..tostring(tcIndex)
         t[#t+1] = string.format(
-          [[<a href="tc://%s" style="color:#f5a623;background-color:#3a2e00;]]
+          [[<a name="%s"></a><a href="tc://%s" style="color:#f5a623;background-color:#3a2e00;]]
           ..[[text-decoration:none;font-weight:bold;padding:0 3px;">%s</a>]],
-          seg.text, esc(seg.text))
+          anchorName, seg.text, esc(seg.text))
       else
         t[#t+1] = esc(seg.text)
       end
@@ -424,6 +464,7 @@ local state = {
   lastPath = nil,
   lastJumpTc = nil,
   lastJumpClock = 0,
+  tcItems = {},
 }
 
 -- ─── UI ──────────────────────────────────────────────────────────────────────
@@ -440,7 +481,6 @@ local win = disp:AddWindow({
       Weight=0, Spacing=4,
       ui:Button{ ID="BtnOpen",   Text="Open…",    MinimumSize={80,30} },
       ui:Button{ ID="BtnSaveAs", Text="Save As…", MinimumSize={80,30} },
-      ui:Button{ ID="BtnToggle", Text="Edit",      MinimumSize={60,30} },
       ui:Label{
         ID="LblFile",
         Text="txt · fountain · md · srt · docx · doc · rtf",
@@ -456,37 +496,33 @@ local win = disp:AddWindow({
     },
 
     ui:HGroup{
-      Weight=0, Spacing=4,
-      ui:Label{ Text="Jump TC:", Weight=0, Alignment={AlignLeft=true, AlignVCenter=true} },
-      ui:LineEdit{
-        ID="TxtJumpTc",
-        Text="",
-        PlaceholderText="01:00:00:00",
-        MinimumSize={140,30},
-        Weight=0,
-        Events={ ReturnPressed=true },
+      Weight=1,
+      Spacing=6,
+      ui:TextEdit{
+        ID="TxtMain", ReadOnly=false, Weight=4,
+        Events={
+          CursorPositionChanged=true,
+          SelectionChanged=true,
+          MousePress=true,
+          MouseRelease=true,
+        },
       },
-      ui:Button{ ID="BtnJumpTc", Text="Go", MinimumSize={56,30}, Weight=0 },
-      ui:HGap(0, 1),
-    },
 
-    ui:TextEdit{
-      ID="TxtMain", ReadOnly=true, Weight=1,
-      Events={
-        CursorPositionChanged=true,
-        SelectionChanged=true,
-        MousePress=true,
-        MouseRelease=true,
+      ui:Tree{
+        ID="TcList",
+        Weight=2,
+        ColumnCount=2,
+        HeaderHidden=false,
+        SortingEnabled=false,
+        AlternatingRowColors=true,
       },
     },
 
     ui:HGroup{
       Weight=0,
-      ui:Label{
-        ID="LblStatus", Text="", Weight=1,
-        Alignment={AlignLeft=true, AlignVCenter=true},
-        StyleSheet="color:#888888; font-size:11px;",
-      },
+      ui:Button{ ID="BtnRefresh", Text="Обновить", MinimumSize={94,30}, Weight=0 },
+      ui:HGap(0,1),
+      ui:Button{ ID="BtnSetTc", Text="SET TC", MinimumSize={84,30}, Weight=0 },
     },
   },
 })
@@ -500,12 +536,47 @@ local itm = win:GetItems()
 local BLANK_HTML = [[<html><body style="background-color:#1a1a1a;"></body></html>]]
 
 local function showHtml(html)
+  state.updatingHtml = true
   itm.TxtMain.HTML = BLANK_HTML
   itm.TxtMain.HTML = html
+  state.updatingHtml = false
 end
 
 local function setStatus(msg)
-  itm.LblStatus.Text = msg
+  -- Status bar removed by request; keep function as no-op for compatibility.
+end
+
+local rebuildTimecodeList
+
+local function refreshFromEditor()
+  if state.updatingHtml then return end
+  state.rawText = itm.TxtMain.PlainText or state.rawText or ""
+  state.parsed = parseText(state.rawText)
+  state.mode = "view"
+  showHtml(buildHtml(state.parsed, state.fontSize))
+  rebuildTimecodeList()
+end
+
+rebuildTimecodeList = function()
+  local tree = itm.TcList
+  if not tree then return end
+
+  tree:Clear()
+  tree:SetHeaderLabels({"TC", ""})
+
+  state.tcItems = collectTimecodesFromRaw(state.rawText or "")
+  for _, rec in ipairs(state.tcItems) do
+    local item = tree:NewItem()
+    item.Text[0] = rec.tc
+    item.Text[1] = tostring(rec.preview or "...")
+    tree:AddTopLevelItem(item)
+  end
+
+  pcall(function() tree.ColumnWidth[0] = 110 end)
+  pcall(function() tree.ColumnWidth[1] = 220 end)
+
+  setStatus(string.format("%d строк · %d таймкодов · FPS %g",
+    #(state.parsed or {}), #state.tcItems, state.fps))
 end
 
 local function tryJumpInput(tc)
@@ -521,14 +592,13 @@ local function tryJumpInput(tc)
     return
   end
 
-  print("[DragonScript] manual jump request: "..matchTc)
   local ok = jumpToTimecode(matchTc)
   if ok then
     state.lastJumpTc = matchTc
     state.lastJumpClock = os.clock()
-    setStatus("OK: jumped to "..matchTc.." (manual)")
+    setStatus("Переход: "..matchTc)
   else
-    setStatus("ERR: cannot jump to "..matchTc.." (manual)")
+    setStatus("Ошибка: не удалось перейти к "..matchTc)
   end
 end
 
@@ -545,12 +615,10 @@ local function enterViewMode()
   -- Оставляем курсор активным, чтобы CursorPositionChanged ловил клик по таймкоду.
   itm.TxtMain.ReadOnly = false
   state.mode = "view"
-  itm.BtnToggle.Text = "Edit"
 
   if state.parsed then
     showHtml(buildHtml(state.parsed, state.fontSize))
-    setStatus(string.format("%d строк · %d таймкодов · FPS %g",
-      #state.parsed, countTimecodes(state.parsed), state.fps))
+    rebuildTimecodeList()
   end
 end
 
@@ -559,7 +627,6 @@ local function enterEditMode()
   itm.TxtMain.ReadOnly  = false
   itm.TxtMain.PlainText = state.rawText or ""
   state.mode = "edit"
-  itm.BtnToggle.Text = "View"
   setStatus("Режим редактирования")
 end
 
@@ -583,37 +650,77 @@ win.On.BtnOpen.Clicked = function()
   state.lastPath = path
   state.mode     = "view"
 
-  -- См. комментарий в enterViewMode: курсор должен быть активен в режиме view.
-  itm.TxtMain.ReadOnly = false
-  itm.BtnToggle.Text   = "Edit"
-
   itm.LblFile.Text = path:match("([^/]+)$") or path
-  setStatus(string.format("%d строк · %d таймкодов · FPS %g",
-    #state.parsed, countTimecodes(state.parsed), state.fps))
   showHtml(buildHtml(state.parsed, state.fontSize))
-end
-
-win.On.BtnToggle.Clicked = function()
-  if state.mode == "view" then
-    enterEditMode()
-  else
-    enterViewMode()
-  end
+  rebuildTimecodeList()
 end
 
 win.On.SpinSize.ValueChanged = function(ev)
   state.fontSize = ev.Value
-  if state.mode == "view" and state.parsed then
+  if state.parsed then
     showHtml(buildHtml(state.parsed, state.fontSize))
   end
 end
 
-win.On.BtnJumpTc.Clicked = function()
-  tryJumpInput(itm.TxtJumpTc.Text)
+win.On.BtnRefresh.Clicked = function()
+  refreshFromEditor()
 end
 
-win.On.TxtJumpTc.ReturnPressed = function()
-  tryJumpInput(itm.TxtJumpTc.Text)
+win.On.BtnSetTc.Clicked = function()
+  local tl = getTimeline()
+  local tc = getCurrentTimelineTimecode(tl)
+  if not tc or tc == "" then
+    setStatus("Не удалось получить текущий TC таймлайна")
+    return
+  end
+
+  if itm.TxtMain and itm.TxtMain.InsertPlainText then
+    itm.TxtMain.ReadOnly = false
+    local ok = pcall(function() itm.TxtMain:InsertPlainText(tc .. " ") end)
+    if not ok then pcall(function() itm.TxtMain.InsertPlainText(tc .. " ") end) end
+  else
+    itm.TxtMain.PlainText = (itm.TxtMain.PlainText or "") .. tc .. " "
+  end
+
+  state.rawText = itm.TxtMain.PlainText or state.rawText or ""
+  state.parsed  = parseText(state.rawText)
+  rebuildTimecodeList()
+
+  setStatus("Вставлен TC: "..tc)
+end
+
+win.On.TcList.ItemClicked = function(ev)
+  local tree = itm.TcList
+  if not tree or not tree.CurrentItem then return end
+  local cur = tree:CurrentItem()
+  if not cur or not cur.Text then return end
+  local tc = tostring(cur.Text[0] or "")
+  if tc == "" then return end
+
+  local row = nil
+  if tree.IndexOfTopLevelItem then
+    local okRow, idx = pcall(function() return tree:IndexOfTopLevelItem(cur) end)
+    if okRow and type(idx) == "number" then row = idx + 1 end
+  end
+  local rec = row and state.tcItems[row] or nil
+
+  setStatus("TC -> Jump: "..tc)
+
+  if itm.TxtMain then
+    local scrolled = false
+    if rec and rec.anchor and rec.anchor ~= "" and itm.TxtMain.ScrollToAnchor then
+      local okScroll = pcall(function() itm.TxtMain:ScrollToAnchor(rec.anchor) end)
+      scrolled = okScroll and true or false
+    end
+
+    if not scrolled and itm.TxtMain.Find then
+      pcall(function() itm.TxtMain:Find(tc, {FindCaseSensitively=true}) end)
+      pcall(function() itm.TxtMain:EnsureCursorVisible() end)
+    end
+  end
+
+  -- Instant jump on right-list click (no need to press Go).
+  tryJumpInput(tc)
 end
 
 local function tcFromLinkAtPoint(pos)
@@ -643,40 +750,31 @@ end
 
 local function putTcIntoJumpField(tc, origin)
   if not tc or tc == "" then return end
-  itm.TxtJumpTc.Text = tc
   setStatus("TC -> Jump: "..tc)
-  print("[DragonScript] "..(origin or "click").." selected tc: "..tc)
+
 end
 
 win.On.TxtMain.CursorPositionChanged = function(ev)
-  -- Keep silent: no auto-jump on cursor movement.
 end
 
 win.On.TxtMain.SelectionChanged = function(ev)
-  -- Keep silent: no auto-jump on selection change.
+end
+
+win.On.TxtMain.TextChanged = function(ev)
+  if state.updatingHtml then return end
+  state.rawText = itm.TxtMain.PlainText or ""
 end
 
 win.On.TxtMain.MouseRelease = function(ev)
-  print("[DragonScript] MouseRelease on TxtMain")
   local tc = nil
-  if state.mode == "view" then
-    tc = tcFromLinkAtPoint(ev and ev.Pos)
-  end
-  if not tc then
-    tc = tcFromCursor(ev)
-  end
+  tc = tcFromCursor(ev)
   putTcIntoJumpField(tc, "MouseRelease")
 end
 
 win.On.BtnSaveAs.Clicked = function()
-  local textToSave
-  if state.mode == "edit" then
-    textToSave    = itm.TxtMain.PlainText or ""
-    state.rawText = textToSave
-    state.parsed  = parseText(textToSave)
-  else
-    textToSave = state.rawText or ""
-  end
+  local textToSave = itm.TxtMain.PlainText or state.rawText or ""
+  state.rawText = textToSave
+  state.parsed  = parseText(textToSave)
 
   if textToSave=="" then setStatus("Нечего сохранять"); return end
 
@@ -749,11 +847,11 @@ end
 
 -- ─── Старт ───────────────────────────────────────────────────────────────────
 
+itm.TxtMain.ReadOnly = false
 showHtml([[<html><body style="background-color:#1a1a1a;color:#555;]]
   ..[[font-family:'Courier New',monospace;font-size:13px;">]]
   ..[[<br>&nbsp;&nbsp;Open a file to begin...</body></html>]])
 
-print("[DragonScript] v2.2 started")
 win:Show()
 disp:RunLoop()
 win:Hide()
