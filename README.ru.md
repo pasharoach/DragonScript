@@ -50,38 +50,20 @@ DragonScript v3.0 — финальный стабильный релиз про�
 
 ## Установка (простой способ)
 
-### Для macOS, App Store и Windows
-
-1. Открой DaVinci Resolve → страницу **Fusion** → **Console**.
+1. Открой DaVinci Resolve → **Workspace** → **Console**.
 2. В консоли **Lua** выполни:
 
 ```lua
 print(fu:MapPath("Scripts:/Edit/"))
 ```
 
-3. Скопируй `DragonScript.lua` точно в путь, который вывел Resolve.
+3. В Finder открой **Переход** → **Переход к папке...**, вставь этот путь, скопируй туда `DragonScript.lua`, перезапусти Resolve и запусти:
 
-- Если положить в `Scripts:/Edit/`, скрипт появится в:
-  `Workspace → Scripts → Edit`
+```text
+Workspace → Scripts → Edit → DragonScript
+```
 
-4. Перезапусти Resolve один раз.
-5. Запусти скрипт из соответствующего раздела меню.
-
-### Если скрипт не появился
-
-1. Preferences → System → General → **External scripting using = Local**.
-2. Имя файла должно быть строго `DragonScript.lua`.
-3. Файл должен лежать напрямую в папке `Edit`.
-
----
-
-## Типовые пути (опционально)
-
-Используй только если нет доступа к консоли.
-
-- macOS (обычная версия): `~/Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts/Edit/`
-- macOS (App Store, часто): `~/Library/Containers/com.blackmagic-design.DaVinciResolveAppStore/Data/Library/Application Support/Fusion/Scripts/Edit/`
-- Windows (пользователь): `%APPDATA%\Blackmagic Design\DaVinci Resolve\Support\Fusion\Scripts\Edit\`
+Если скрипт не появился: включи Preferences → System → General → **External scripting using = Local**.
 
 ---
 
