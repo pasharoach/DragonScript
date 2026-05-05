@@ -107,6 +107,29 @@ Resolve restart is usually not required (if the script does not appear, restart 
 
 ---
 
+## Troubleshooting (script not visible)
+
+Official Resolve scripting docs list these base folders for menu scripts on macOS:
+
+1. /Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts
+2. ~/Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts
+
+For App Store builds, Resolve may read from the sandbox container path instead.
+
+If DragonScript does not appear in Workspace > Scripts > Utility:
+
+1. Check Preferences > System > General > External scripting using = Local.
+2. Ensure file name is exactly DragonScript.lua.
+3. Confirm file is inside a Utility subfolder.
+4. Restart Resolve once.
+5. If still missing, place the file in both regular and container paths.
+
+Quick verify command (Terminal):
+
+find "$HOME/Library" -type f -name "DragonScript.lua" 2>/dev/null | grep -E "Fusion/Scripts/Utility|Support/Fusion/Scripts/Utility"
+
+---
+
 ## Usage
 
 ### Reading a script

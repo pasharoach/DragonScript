@@ -107,6 +107,29 @@ Workspace → Scripts → Utility → DragonScript
 
 ---
 
+## Диагностика (скрипт не виден)
+
+Официальная документация Resolve по скриптам указывает базовые папки для macOS:
+
+1. /Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts
+2. ~/Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts
+
+Для версии из App Store Resolve может читать путь внутри sandbox-контейнера.
+
+Если DragonScript не видно в Workspace > Scripts > Utility:
+
+1. Проверь Preferences > System > General > External scripting using = Local.
+2. Убедись, что имя файла строго DragonScript.lua.
+3. Проверь, что файл лежит в подпапке Utility.
+4. Перезапусти Resolve один раз.
+5. Если не появился, положи файл и в обычный путь, и в container-путь.
+
+Быстрая проверка через Terminal:
+
+find "$HOME/Library" -type f -name "DragonScript.lua" 2>/dev/null | grep -E "Fusion/Scripts/Utility|Support/Fusion/Scripts/Utility"
+
+---
+
 ## Как использовать
 
 ### Открытие файла
